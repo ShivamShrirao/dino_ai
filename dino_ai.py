@@ -16,8 +16,8 @@ GAME_ACC   = 0.1
 L_Y 	   = 200
 D_POS 	   = 30
 D_Y 	   = L_Y-36
-N_OF_DINO  = 1
-FPS		   = 10
+N_OF_DINO  = 40
+FPS		   = 60
 AI 		   = True
 
 class Dino_model:
