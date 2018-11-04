@@ -28,7 +28,6 @@ class neural_net:
 
 	def think(self, X):			# X = [i1, i2, i3, i4, i5]
 		X = np.array(X)
-		print(X)
 		X_norm = (X-X.mean())/X.std()	# This shit rocks
 		z = (np.dot(X_norm,self.w1)+self.b1)
 		z = np.tanh(z)
