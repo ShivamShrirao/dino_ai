@@ -2,7 +2,6 @@
 
 import pygame
 from pygame.locals import *
-import sys
 import random
 import nnet
 from copy import deepcopy
@@ -12,10 +11,10 @@ SCR_HEIGHT = 300
 SCR_WIDTH  = 800
 GRAVITY    = 6
 GRAV_ACC   = 0.1
-GAME_SPEED = 5
+GAME_SPEED = 6
 GAME_ACC   = 0.1
 L_Y 	   = 200
-D_X 	   = 30
+DINO_X 	   = 30
 D_Y 	   = L_Y-36
 N_OF_DINO  = 1
 FPS		   = 60
@@ -23,7 +22,7 @@ AI 		   = False
 
 class Dino_model:
 	def __init__(self):
-		self.dino = pygame.Rect(D_X, L_Y, 30, 42)
+		self.dino = pygame.Rect(DINO_X, L_Y, 30, 42)
 		self.dinoY = L_Y-100
 		self.fitness_score = 0
 		self.dead = False
@@ -31,7 +30,6 @@ class Dino_model:
 		self.jumpTime = 0
 		self.jumpSpeed = 0
 		self.gravity = GRAVITY
-		self.points = 0
 		self.dk = 0
 		self.d_x_srt = 300
 		self.d_x_end = 300
@@ -49,9 +47,9 @@ class Dino_model:
 
 	def jump(self):
 		if self.dinoY>=D_Y:
-			self.jumpTime = 28
+			self.jumpTime = 29
 			self.gravity = GRAVITY
-			self.jumpSpeed = 15				#how much to jump
+			self.jumpSpeed = 16				#how much to jump
 	def duck(self):
 		if self.dinoY>=D_Y:
 			self.dk=1
@@ -77,6 +75,10 @@ class obstacle(object):
 			self.b_y+=10
 		self.ob_img = obs_list[ind]
 		self.obx = random.randint(SCR_WIDTH+100,SCR_WIDTH+200)
+		self.Rect = pygame.Rect(self.obx,
+							self.b_y,
+							self.ob_img.get_width()-10,
+							self.ob_img.get_height())
 
 class DinoGame:
 	def __init__(self):
@@ -96,9 +98,9 @@ class DinoGame:
 							pygame.image.load("assets/cac_s2.png").convert_alpha(),
 							pygame.image.load("assets/cac_s.png").convert_alpha()]
 		self.landx = 0
-		self.land2x = self.land.get_width()
 		self.land_width = self.land.get_width()
-		self.gap = 400
+		self.land2x = self.land_width
+		self.gap = 350#SCR_WIDTH/2
 		self.generation = 1
 		self.pre_gen_scr = 0
 		self.pre_best = Dino_model()
@@ -106,7 +108,7 @@ class DinoGame:
 		self.alive_count = N_OF_DINO
 		self.gm_speed = GAME_SPEED
 		self.obs = [obstacle(self.obs_list) for i in range(2)]
-		self.obs[1].obx+=400
+		self.obs[1].obx+=self.gap
 
 	def updateLand(self):
 		self.landx -= self.gm_speed
@@ -125,11 +127,10 @@ class DinoGame:
 
 	def genObs(self):
 		for i in range(len(self.obs)):
-			if self.obs[i].obx<-80:
+			if self.obs[i].obx<-60:
 				self.obs[i] = obstacle(self.obs_list)
 		diff=abs(self.obs[0].obx-self.obs[1].obx)
-		if diff<self.gap:
-			print(self.gap,self.gm_speed)
+		while diff<self.gap:
 			if self.obs[0].obx>SCR_WIDTH:
 				self.obs[0].obx+=self.gap
 			else:
@@ -151,58 +152,23 @@ class DinoGame:
 				dno.gravity += GRAV_ACC				# gravitational acceleration
 			dno.dino[1] = dno.dinoY					# for collision detect
 
-		# upRect = pygame.Rect(self.wallx+10,
-							# 0 - self.gap - self.offset - 10,
-							# self.wallUp.get_width()-10,
-							# self.wallUp.get_height())
-		# downRect = pygame.Rect(self.wallx+10,
-							# self.wallUp.get_height() - self.offset + 10,
-		# 					self.wallDown.get_width()-10,
-		# 					self.wallDown.get_height())
-		# upRect2 = pygame.Rect(self.wall2x+10,
-							# 0 - self.gap - self.offset2 - 10,
-							# self.wallUp.get_width()-10,
-							# self.wallUp.get_height())
-		# downRect2 = pygame.Rect(self.wall2x+10,
-							# self.wallUp.get_height() - self.offset2 + 10,
-		# 					self.wallDown.get_width()-10,
-		# 					self.wallDown.get_height())
-		# for dno in self.dinos:
-		# 	if not dno.dead:
-		# 		all_dead=False
-		# 		if upRect.colliderect(dno.dino):
-		# 			dno.dead = True
-		# 			dno.gravity=GRAVITY+3
-		# 		elif downRect.colliderect(dno.dino):
-		# 			dno.dead = True
-		# 			dno.gravity=GRAVITY+3
-		# 		elif upRect2.colliderect(dno.dino):
-		# 			dno.dead = True
-		# 			dno.gravity=GRAVITY+3
-		# 		elif downRect2.colliderect(dno.dino):
-		# 			dno.dead = True
-		# 			dno.gravity=GRAVITY+3
-		# 		if not 0<dno.dino[1]<SCR_HEIGHT+10:
-		# 			dno.dead = True
-		# 		if dno.dead:
-		# 			self.alive_count-=1
-		# 			self.last=dno
+		for dno in self.dinos:
+			if not dno.dead:
+				for oo in self.obs:
+					if oo.obx<100:
+						oo.Rect[0]=oo.obx+2
+						if oo.Rect.colliderect(dno.dino):
+							dno.dead = True
+							self.alive_count-=1
 
 		self.dinos.sort(key=lambda x: x.fitness_score, reverse=True)
-
-		al_ded=True
-		for dno in self.dinos:				#check all dinos for death
-			if not dno.dead:
-				al_ded=False
-				break
 
 		if self.dinos[0].fitness_score>self.high_scr:
 					self.pre_best = deepcopy(self.dinos[0])
 					self.high_scr = self.dinos[0].fitness_score
 
-		if al_ded:
-			if (not self.last.dino[1]<SCR_HEIGHT+10):
-				print("Points:",self.last.points)
+		if not self.alive_count:
+				print("Score:",self.dinos[0].fitness_score)
 				self.pre_gen_scr=self.dinos[0].fitness_score
 				if AI:
 					self.clone_best()
@@ -215,15 +181,14 @@ class DinoGame:
 					dno.dinoY = L_Y-100
 					dno.fitness_score = 0
 					dno.dead = False
-					dno.points = 0
 					dno.gravity = GRAVITY
-				self.wallx = 400
-				self.wall2x = self.wallx+400
-				# self.offset = random.randint(0,200)
-				# self.offset2 = random.randint(0,200)
+				self.landx = 0
+				self.land2x = self.land_width
 				self.alive_count = N_OF_DINO
 				self.generation+= 1
 				self.gm_speed = GAME_SPEED
+				self.obs = [obstacle(self.obs_list) for i in range(2)]
+				self.obs[1].obx+=self.gap
 
 	def clone_best(self):
 		self.dinos.pop()										# 1 to 3
@@ -264,7 +229,8 @@ class DinoGame:
 		pygame.font.init()
 		font = pygame.font.SysFont("Arial", 20)
 		step=0
-		while True:
+		n_exit_game = True
+		while n_exit_game:
 			clock.tick(FPS)
 			keys=pygame.key.get_pressed()
 			for dno in self.dinos:
@@ -275,29 +241,22 @@ class DinoGame:
 						dno.jump()
 			for event in pygame.event.get():
 				if event.type == pygame.QUIT:
-					sys.exit()
+					n_exit_game=False
 
 			self.screen.fill((255, 255, 255))
 			self.screen.blit(self.land, (self.landx, L_Y))
 			self.screen.blit(self.land, (self.land2x, L_Y))
 			for oo in self.obs:
 				self.screen.blit(oo.ob_img, (oo.obx, oo.b_y))
-			# self.screen.blit(self.obstacles[1], (self.land2x, D_Y))
-			# self.screen.blit(self.wallDown,
-							# (self.wallx, self.wallUp.get_height() - self.offset))
-			
-			self.screen.blit(font.render("Points: "+str(self.dinos[0].points),
+				pygame.draw.rect(self.screen, (140,240,130), Rect((oo.obx,oo.b_y), (oo.ob_img.get_width(),oo.ob_img.get_height())),1)
+			self.screen.blit(font.render("Score: "+str(self.dinos[0].fitness_score)[:5],
 										-1,
 										(110,110,110)),
 							(SCR_WIDTH/3, 20))
-			self.screen.blit(font.render("Fit Score: "+str(self.dinos[0].fitness_score)[:5],
+			self.screen.blit(font.render("High Score: "+str(self.high_scr)[:5],
 										-1,
 										(110,110,110)),
 							(SCR_WIDTH/3, 50))
-			self.screen.blit(font.render("Best Fit Score: "+str(self.high_scr)[:5],
-										-1,
-										(110,110,110)),
-							(SCR_WIDTH/3, 80))
 			self.screen.blit(font.render("Generation: "+str(self.generation),
 										-1,
 										(110,110,110)),
@@ -309,7 +268,7 @@ class DinoGame:
 			self.screen.blit(font.render("Prev Score: "+str(self.pre_gen_scr)[:5],
 										-1,
 										(110,110,110)),
-							(SCR_WIDTH/1.5+20, 80))
+							(SCR_WIDTH/3, 80))
 			
 			# if self.wallx>0 and self.wall2x>0:
 				# self.cls_x=min(self.wallx, self.wall2x)
@@ -321,7 +280,7 @@ class DinoGame:
 				# self.cls_off=self.offset2
 			for dno in self.dinos:
 				if not dno.dead:
-					# dno.d_x_srt = (self.cls_x-30-D_X)
+					# dno.d_x_srt = (self.cls_x-30-DINO_X)
 					# dno.d_x_end = dno.d_x_srt+self.wallDown.get_width()
 					# dno.d_bottom = self.wallUp.get_height()-self.cls_off-dno.dinoY
 					# dno.d_top = dno.d_bottom-3-self.gap
@@ -347,7 +306,8 @@ class DinoGame:
 					step+=1
 				else:
 					dno.sprite = 3
-				self.screen.blit(self.dinomov[dno.sprite], (D_X, dno.dinoY+DD))
+				self.screen.blit(self.dinomov[dno.sprite], (DINO_X, dno.dinoY+DD))#DINO_X, L_Y, 30, 42
+				pygame.draw.rect(self.screen, (240,140,130), Rect((DINO_X+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
 
 			self.updateLand()
 			self.dinoUpdate()
