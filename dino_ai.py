@@ -14,15 +14,15 @@ GRAV_ACC   = 0.1
 GAME_SPEED = 6
 GAME_ACC   = 0.1
 L_Y 	   = 200
-DINO_X 	   = 30
+D_POS 	   = 30
 D_Y 	   = L_Y-36
 N_OF_DINO  = 1
-FPS		   = 60
-AI 		   = False
+FPS		   = 10
+AI 		   = True
 
 class Dino_model:
 	def __init__(self):
-		self.dino = pygame.Rect(DINO_X, L_Y, 30, 42)
+		self.dino = pygame.Rect(D_POS, L_Y, 30, 42)
 		self.dinoY = L_Y-100
 		self.fitness_score = 0
 		self.dead = False
@@ -31,13 +31,14 @@ class Dino_model:
 		self.jumpSpeed = 0
 		self.gravity = GRAVITY
 		self.dk = 0
-		self.d_x_srt = 300
-		self.d_x_end = 300
-		self.d_y = 100
-		self.d_top = 100
-		self.d_bottom = 100
-		self.par = 0
-		self.nn = nnet.neural_net(n_inputs=8,nrons=30,n_outputs=2)
+
+		self.cls_x = SCR_WIDTH
+		self.far_x = SCR_WIDTH
+		self.cls_w = 40
+		self.cls_h = 40
+		self.speed = GAME_SPEED
+		
+		self.nn = nnet.neural_net(n_inputs=5,nrons=30,n_outputs=2)
 	
 	def __str__(self):
 		return str(self.__dict__)
@@ -56,16 +57,15 @@ class Dino_model:
 			self.dino[3]=30
 
 	def think(self):
-		out = self.nn.think([self.d_x_srt,
-						self.d_x_end,
-						(self.d_x_srt+400),
-						self.dinoY,
-						(SCR_HEIGHT-self.dinoY),
-						self.d_y,
-						self.d_top,
-						self.d_bottom])
-		if out[0]> 0.5:
+		out = self.nn.think([self.cls_x,
+						self.far_x,
+						self.cls_w,
+						self.cls_h,
+						self.speed])
+		if out[0]>0.5:
 			self.jump()
+		elif out[1]>0.5:
+			self.duck()
 
 class obstacle(object):
 	def __init__(self, obs_list):
@@ -97,18 +97,18 @@ class DinoGame:
 							pygame.image.load("assets/cac_l.png").convert_alpha(),
 							pygame.image.load("assets/cac_s2.png").convert_alpha(),
 							pygame.image.load("assets/cac_s.png").convert_alpha()]
+		self.gap = 350#SCR_WIDTH/2
+		self.obs = [obstacle(self.obs_list) for i in range(2)]
+		self.obs[1].obx+=self.gap
 		self.landx = 0
 		self.land_width = self.land.get_width()
 		self.land2x = self.land_width
-		self.gap = 350#SCR_WIDTH/2
 		self.generation = 1
 		self.pre_gen_scr = 0
 		self.pre_best = Dino_model()
 		self.high_scr = 0
 		self.alive_count = N_OF_DINO
 		self.gm_speed = GAME_SPEED
-		self.obs = [obstacle(self.obs_list) for i in range(2)]
-		self.obs[1].obx+=self.gap
 
 	def updateLand(self):
 		self.landx -= self.gm_speed
@@ -126,7 +126,7 @@ class DinoGame:
 			self.gm_speed+=GAME_ACC					# wall acceleration
 
 	def genObs(self):
-		for i in range(len(self.obs)):
+		for i in range(2):
 			if self.obs[i].obx<-60:
 				self.obs[i] = obstacle(self.obs_list)
 		diff=abs(self.obs[0].obx-self.obs[1].obx)
@@ -269,23 +269,31 @@ class DinoGame:
 										-1,
 										(110,110,110)),
 							(SCR_WIDTH/3, 80))
-			
-			# if self.wallx>0 and self.wall2x>0:
-				# self.cls_x=min(self.wallx, self.wall2x)
-			# else:
-				# self.cls_x=max(self.wallx, self.wall2x)
-			# if self.cls_x==self.wallx:
-				# self.cls_off=self.offset
-			# else:
-				# self.cls_off=self.offset2
+			if self.obs[0].obx>20:
+				dx0=(self.obs[0].obx-40-D_POS)
+			else:
+				dx0=SCR_WIDTH
+			if self.obs[1].obx>20:
+				dx1=(self.obs[1].obx-40-D_POS)
+			else:
+				dx1=SCR_WIDTH
+			if dx0<dx1:
+				cls_x=dx0
+				far_x=dx1
+				cls_w=self.obs[0].ob_img.get_width()
+				cls_h=self.obs[0].ob_img.get_height()
+			else:
+				cls_x=dx1
+				far_x=dx0
+				cls_w=self.obs[1].ob_img.get_width()
+				cls_h=self.obs[1].ob_img.get_height()
 			for dno in self.dinos:
 				if not dno.dead:
-					# dno.d_x_srt = (self.cls_x-30-DINO_X)
-					# dno.d_x_end = dno.d_x_srt+self.wallDown.get_width()
-					# dno.d_bottom = self.wallUp.get_height()-self.cls_off-dno.dinoY
-					# dno.d_top = dno.d_bottom-3-self.gap
-					# dno.d_y = dno.d_bottom-self.gap/2
-					# dno.d_bottom-=20
+					dno.cls_x = cls_x
+					dno.far_x = far_x
+					dno.cls_w = cls_w
+					dno.cls_h = cls_h
+					dno.speed = self.gm_speed
 					N=0
 					DD=0
 					if AI:
@@ -304,10 +312,8 @@ class DinoGame:
 					else:
 						dno.sprite = 1+N
 					step+=1
-				else:
-					dno.sprite = 3
-				self.screen.blit(self.dinomov[dno.sprite], (DINO_X, dno.dinoY+DD))#DINO_X, L_Y, 30, 42
-				pygame.draw.rect(self.screen, (240,140,130), Rect((DINO_X+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
+					self.screen.blit(self.dinomov[dno.sprite], (D_POS, dno.dinoY+DD))#D_POS, L_Y, 30, 42
+					pygame.draw.rect(self.screen, (240,140,130), Rect((D_POS+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
 
 			self.updateLand()
 			self.dinoUpdate()
