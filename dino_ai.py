@@ -7,7 +7,7 @@ import nnet
 from copy import deepcopy
 
 
-SCR_HEIGHT = 300
+SCR_HEIGHT = 250
 SCR_WIDTH  = 800
 GRAVITY    = 6
 GRAV_ACC   = 0.1
@@ -16,6 +16,7 @@ GAME_ACC   = 0.1
 L_Y 	   = 200
 D_POS 	   = 30
 D_Y 	   = L_Y-36
+OBS_GAP	   = 300
 N_OF_DINO  = 40
 FPS		   = 60
 AI 		   = True
@@ -79,6 +80,12 @@ class obstacle(object):
 							self.b_y,
 							self.ob_img.get_width()-10,
 							self.ob_img.get_height())
+class cloud(object):
+	def __init__(self, cloud_img):
+		self.cloud_img = cloud_img
+		self.cloudY = random.randint(15,140)
+		self.cloudX = random.randint(SCR_WIDTH,SCR_WIDTH*2)
+		self.speed = random.uniform(1,3)
 
 class DinoGame:
 	def __init__(self):
@@ -97,9 +104,11 @@ class DinoGame:
 							pygame.image.load("assets/cac_l.png").convert_alpha(),
 							pygame.image.load("assets/cac_s2.png").convert_alpha(),
 							pygame.image.load("assets/cac_s.png").convert_alpha()]
-		self.gap = 350#SCR_WIDTH/2
+		self.cloud_img = pygame.image.load("assets/cloud.png").convert_alpha()
+		self.gap = OBS_GAP
 		self.obs = [obstacle(self.obs_list) for i in range(2)]
 		self.obs[1].obx+=self.gap
+		self.clouds = [cloud(self.cloud_img) for i in range(4)]
 		self.landx = 0
 		self.land_width = self.land.get_width()
 		self.land2x = self.land_width
@@ -120,10 +129,18 @@ class DinoGame:
 				dno.fitness_score+=self.gm_speed/(GAME_SPEED*10) #0.1
 		if self.landx < -self.land_width:
 			self.landx=self.land2x+self.land_width
-			self.gm_speed+=GAME_ACC					# wall acceleration
+			if self.gm_speed<30:
+				self.gm_speed+=GAME_ACC					# wall acceleration
 		elif self.land2x < -self.land_width:
 			self.land2x=self.landx+self.land_width
-			self.gm_speed+=GAME_ACC					# wall acceleration
+			if self.gm_speed<30:
+				self.gm_speed+=GAME_ACC					# wall acceleration
+
+	def genClouds(self):
+		for i in range(4):
+			if self.clouds[i].cloudX<-49:
+				self.clouds[i]=cloud(self.cloud_img)
+			self.clouds[i].cloudX-=self.clouds[i].speed
 
 	def genObs(self):
 		for i in range(2):
@@ -132,11 +149,11 @@ class DinoGame:
 		diff=abs(self.obs[0].obx-self.obs[1].obx)
 		while diff<self.gap:
 			if self.obs[0].obx>SCR_WIDTH:
-				self.obs[0].obx+=self.gap
+				self.obs[0].obx+=self.gap/2
 			else:
-				self.obs[1].obx+=self.gap
+				self.obs[1].obx+=self.gap/2
 			diff=abs(self.obs[0].obx-self.obs[1].obx)
-		self.gap+=GAME_ACC/5
+		self.gap+=GAME_ACC/8
 
 	def dinoUpdate(self):
 		for dno in self.dinos:
@@ -184,6 +201,7 @@ class DinoGame:
 					dno.gravity = GRAVITY
 				self.landx = 0
 				self.land2x = self.land_width
+				self.gap = OBS_GAP
 				self.alive_count = N_OF_DINO
 				self.generation+= 1
 				self.gm_speed = GAME_SPEED
@@ -227,7 +245,7 @@ class DinoGame:
 	def run(self):
 		clock = pygame.time.Clock()
 		pygame.font.init()
-		font = pygame.font.SysFont("Arial", 20)
+		font = pygame.font.SysFont("Arial", 16)
 		step=0
 		n_exit_game = True
 		while n_exit_game:
@@ -248,27 +266,30 @@ class DinoGame:
 			self.screen.blit(self.land, (self.land2x, L_Y))
 			for oo in self.obs:
 				self.screen.blit(oo.ob_img, (oo.obx, oo.b_y))
-				pygame.draw.rect(self.screen, (140,240,130), Rect((oo.obx,oo.b_y), (oo.ob_img.get_width(),oo.ob_img.get_height())),1)
+				# pygame.draw.rect(self.screen, (140,240,130), Rect((oo.obx,oo.b_y), (oo.ob_img.get_width(),oo.ob_img.get_height())),1)
+			for cld in self.clouds:
+				self.screen.blit(cld.cloud_img, (cld.cloudX, cld.cloudY))
+			self.genClouds()
 			self.screen.blit(font.render("Score: "+str(self.dinos[0].fitness_score)[:5],
 										-1,
 										(110,110,110)),
-							(SCR_WIDTH/3, 20))
-			self.screen.blit(font.render("High Score: "+str(self.high_scr)[:5],
-										-1,
-										(110,110,110)),
-							(SCR_WIDTH/3, 50))
-			self.screen.blit(font.render("Generation: "+str(self.generation),
-										-1,
-										(110,110,110)),
-							(SCR_WIDTH/1.5, 20))
-			self.screen.blit(font.render("Alive: "+str(self.alive_count),
-										-1,
-										(110,110,110)),
-							(SCR_WIDTH/1.4, 50))
+							(SCR_WIDTH/1.6, 10))
 			self.screen.blit(font.render("Prev Score: "+str(self.pre_gen_scr)[:5],
 										-1,
 										(110,110,110)),
-							(SCR_WIDTH/3, 80))
+							(SCR_WIDTH/1.6, 40))
+			self.screen.blit(font.render("High Score: "+str(self.high_scr)[:5],
+										-1,
+										(110,110,110)),
+							(SCR_WIDTH/1.6, 70))
+			self.screen.blit(font.render("Generation: "+str(self.generation),
+										-1,
+										(110,110,110)),
+							(SCR_WIDTH/1.2, 10))
+			self.screen.blit(font.render("Alive: "+str(self.alive_count),
+										-1,
+										(110,110,110)),
+							(SCR_WIDTH/1.2, 40))
 			if self.obs[0].obx>20:
 				dx0=(self.obs[0].obx-40-D_POS)
 			else:
@@ -313,7 +334,7 @@ class DinoGame:
 						dno.sprite = 1+N
 					step+=1
 					self.screen.blit(self.dinomov[dno.sprite], (D_POS, dno.dinoY+DD))#D_POS, L_Y, 30, 42
-					pygame.draw.rect(self.screen, (240,140,130), Rect((D_POS+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
+					# pygame.draw.rect(self.screen, (240,140,130), Rect((D_POS+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
 
 			self.updateLand()
 			self.dinoUpdate()
