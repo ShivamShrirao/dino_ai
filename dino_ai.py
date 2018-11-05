@@ -62,7 +62,7 @@ class Dino_model:
 						self.far_x,
 						self.cls_w,
 						self.cls_h,
-						self.speed])
+						self.speed*10])
 		if out[0]>0.5:
 			self.jump()
 		elif out[1]>0.5:
@@ -75,7 +75,7 @@ class obstacle(object):
 		if ind>3:
 			self.b_y+=10
 		self.ob_img = obs_list[ind]
-		self.obx = random.randint(SCR_WIDTH+100,SCR_WIDTH+200)
+		self.obx = random.randint(SCR_WIDTH+100,SCR_WIDTH+300)
 		self.Rect = pygame.Rect(self.obx,
 							self.b_y,
 							self.ob_img.get_width()-10,
@@ -209,7 +209,7 @@ class DinoGame:
 				self.obs[1].obx+=self.gap
 
 	def clone_best(self):
-		self.dinos.pop()										# 1 to 3
+		self.dinos.pop()										# 0 to 3
 		self.dinos.insert(0,Dino_model())
 		self.dinos[0]=deepcopy(self.pre_best)
 	def cross_gen(self):
