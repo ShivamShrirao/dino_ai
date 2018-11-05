@@ -185,7 +185,7 @@ class DinoGame:
 					self.high_scr = self.dinos[0].fitness_score
 
 		if not self.alive_count:
-				print("Score:",self.dinos[0].fitness_score)
+				print("Generation",self.generation,":",self.dinos[0].fitness_score)
 				self.pre_gen_scr=self.dinos[0].fitness_score
 				if AI:
 					self.clone_best()
