@@ -30,7 +30,7 @@ class neural_net:
 		X = np.array(X)
 		X_norm = (X-X.mean())/X.std()	# This shit rocks
 		z = (np.dot(X_norm,self.w1)+self.b1)
-		z = np.tanh(z)
+		# z = np.tanh(z)
 		a = np.dot(z,self.w2.T)#+self.b2
 		a = np.dot(z,self.w2.T)+self.b2
 		return self.sigmoid(a)[0]

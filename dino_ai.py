@@ -15,10 +15,10 @@ GAME_SPEED = 6
 GAME_ACC   = 0.1
 L_Y 	   = 200
 D_POS 	   = 30
-D_Y 	   = L_Y-36
+D_Y 	   = L_Y-35
 OBS_GAP	   = 300
-N_OF_DINO  = 40
 FPS		   = 60
+N_OF_DINO  = 40
 AI 		   = True
 
 class Dino_model:
@@ -34,12 +34,13 @@ class Dino_model:
 		self.dk = 0
 
 		self.cls_x = SCR_WIDTH
+		self.cl_bs = 0
 		self.far_x = SCR_WIDTH
 		self.cls_w = 40
 		self.cls_h = 40
 		self.speed = GAME_SPEED
 		
-		self.nn = nnet.neural_net(n_inputs=5,nrons=30,n_outputs=2)
+		self.nn = nnet.neural_net(n_inputs=6,nrons=30,n_outputs=2)
 	
 	def __str__(self):
 		return str(self.__dict__)
@@ -59,6 +60,7 @@ class Dino_model:
 
 	def think(self):
 		out = self.nn.think([self.cls_x,
+						self.cl_bs*2,
 						self.far_x,
 						self.cls_w,
 						self.cls_h,
@@ -70,14 +72,18 @@ class Dino_model:
 
 class obstacle(object):
 	def __init__(self, obs_list):
-		self.b_y = D_Y
-		ind = random.choice(range(6))
-		if ind>3:
-			self.b_y+=10
+		self.oby = D_Y
+		self.ob_img2 = None
+		ind = random.choice(range(len(obs_list)-1))
+		if ind==6:
+			self.oby-=random.choice([-15,45,90,90])		# two 90 cause it takes lot of time for it to learn highest birds are not it's cup of tea
+			self.ob_img2 = obs_list[ind+1]
+		elif ind>3:
+			self.oby+=10
 		self.ob_img = obs_list[ind]
 		self.obx = random.randint(SCR_WIDTH+100,SCR_WIDTH+300)
 		self.Rect = pygame.Rect(self.obx,
-							self.b_y,
+							self.oby,
 							self.ob_img.get_width()-10,
 							self.ob_img.get_height())
 class cloud(object):
@@ -103,7 +109,9 @@ class DinoGame:
 							pygame.image.load("assets/cac_l4.png").convert_alpha(),
 							pygame.image.load("assets/cac_l.png").convert_alpha(),
 							pygame.image.load("assets/cac_s2.png").convert_alpha(),
-							pygame.image.load("assets/cac_s.png").convert_alpha()]
+							pygame.image.load("assets/cac_s.png").convert_alpha(),
+							pygame.image.load("assets/bird1.png").convert_alpha(),
+							pygame.image.load("assets/bird2.png").convert_alpha()]
 		self.cloud_img = pygame.image.load("assets/cloud.png").convert_alpha()
 		self.gap = OBS_GAP
 		self.obs = [obstacle(self.obs_list) for i in range(2)]
@@ -129,11 +137,11 @@ class DinoGame:
 				dno.fitness_score+=self.gm_speed/(GAME_SPEED*10) #0.1
 		if self.landx < -self.land_width:
 			self.landx=self.land2x+self.land_width
-			if self.gm_speed<30:
+			if self.gm_speed<26:
 				self.gm_speed+=GAME_ACC					# wall acceleration
 		elif self.land2x < -self.land_width:
 			self.land2x=self.landx+self.land_width
-			if self.gm_speed<30:
+			if self.gm_speed<26:
 				self.gm_speed+=GAME_ACC					# wall acceleration
 
 	def genClouds(self):
@@ -153,7 +161,7 @@ class DinoGame:
 			else:
 				self.obs[1].obx+=self.gap/2
 			diff=abs(self.obs[0].obx-self.obs[1].obx)
-		self.gap+=GAME_ACC/8
+		self.gap+=GAME_ACC/5
 
 	def dinoUpdate(self):
 		for dno in self.dinos:
@@ -167,6 +175,8 @@ class DinoGame:
 			elif dno.dinoY < D_Y:
 				dno.dinoY += dno.gravity
 				dno.gravity += GRAV_ACC				# gravitational acceleration
+			else:
+				dno.dinoY = D_Y
 			dno.dino[1] = dno.dinoY					# for collision detect
 
 		for dno in self.dinos:
@@ -247,6 +257,7 @@ class DinoGame:
 		pygame.font.init()
 		font = pygame.font.SysFont("Arial", 16)
 		step=0
+		wings=0
 		n_exit_game = True
 		while n_exit_game:
 			clock.tick(FPS)
@@ -265,8 +276,17 @@ class DinoGame:
 			self.screen.blit(self.land, (self.landx, L_Y))
 			self.screen.blit(self.land, (self.land2x, L_Y))
 			for oo in self.obs:
-				self.screen.blit(oo.ob_img, (oo.obx, oo.b_y))
-				# pygame.draw.rect(self.screen, (140,240,130), Rect((oo.obx,oo.b_y), (oo.ob_img.get_width(),oo.ob_img.get_height())),1)
+				if oo.ob_img2:
+					if wings<13:
+						self.screen.blit(oo.ob_img, (oo.obx, oo.oby))
+					elif wings<26:
+						self.screen.blit(oo.ob_img2, (oo.obx, oo.oby-6))
+					else:
+						wings=0
+				else:
+					self.screen.blit(oo.ob_img, (oo.obx, oo.oby))
+				# pygame.draw.rect(self.screen, (140,240,130), Rect((oo.obx,oo.oby), (oo.ob_img.get_width(),oo.ob_img.get_height())),1)
+			wings+=1
 			for cld in self.clouds:
 				self.screen.blit(cld.cloud_img, (cld.cloudX, cld.cloudY))
 			self.genClouds()
@@ -302,15 +322,18 @@ class DinoGame:
 				cls_x=dx0
 				far_x=dx1
 				cls_w=self.obs[0].ob_img.get_width()
-				cls_h=self.obs[0].ob_img.get_height()
+				cls_h=D_Y+47-self.obs[0].oby
+				cl_bs=cls_h-self.obs[0].ob_img.get_height()
 			else:
 				cls_x=dx1
 				far_x=dx0
 				cls_w=self.obs[1].ob_img.get_width()
-				cls_h=self.obs[1].ob_img.get_height()
+				cls_h=D_Y+47-self.obs[1].oby
+				cl_bs=cls_h-self.obs[1].ob_img.get_height()
 			for dno in self.dinos:
 				if not dno.dead:
 					dno.cls_x = cls_x
+					dno.cl_bs = cl_bs
 					dno.far_x = far_x
 					dno.cls_w = cls_w
 					dno.cls_h = cls_h
@@ -332,10 +355,9 @@ class DinoGame:
 							step=0
 					else:
 						dno.sprite = 1+N
-					step+=1
 					self.screen.blit(self.dinomov[dno.sprite], (D_POS, dno.dinoY+DD))#D_POS, L_Y, 30, 42
 					# pygame.draw.rect(self.screen, (240,140,130), Rect((D_POS+2,dno.dinoY+DD+2), (self.dinomov[dno.sprite].get_width()-4,self.dinomov[dno.sprite].get_height()-4)),1)
-
+			step+=1
 			self.updateLand()
 			self.dinoUpdate()
 			self.genObs()
